@@ -1,5 +1,8 @@
 const STORAGE_KEY = "solomons-order-v3";
 
+// Update Google OAuth client ID
+const GOOGLE_CLIENT_ID = "837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com";
+
 function loadState() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -44,7 +47,10 @@ let state = loadState();
 let editingId = null;
 let activeView = "all";
 let currentRealm = null;
-let currentCalendarDate = new Date(); // Calendar state
+let currentCalendarDate = new Date();
+
+// Google Auth state
+let userProfile = null;
 
 // DOM references
 const boardEl = document.getElementById("board");
@@ -87,8 +93,65 @@ const calendarPanel = document.getElementById("calendar-panel");
 const dialogBackdrop = document.getElementById("dialog-backdrop");
 let dialogResolve = null;
 
+// Google Auth elements
+const googleSigninDiv = document.querySelector(".g_id_signin");
+const userProfileEl = document.getElementById("user-profile");
+const userPhotoEl = document.getElementById("user-photo");
+const userNameEl = document.getElementById("user-name");
+
 function todayISO() {
     return new Date().toISOString().slice(0, 10);
+}
+
+// Google Auth Handler
+window.handleCredentialResponse = function(response) {
+    // Decode JWT token
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    userProfile = {
+        name: payload.name,
+        picture: payload.picture,
+        email: payload.email
+    };
+    
+    // Hide Google button, show profile
+    googleSigninDiv.style.display = "none";
+    userProfileEl.style.display = "flex";
+    
+    // Update profile display
+    userPhotoEl.src = userProfile.picture;
+    userNameEl.textContent = userProfile.name;
+    
+    // Save to localStorage
+    localStorage.setItem("solomons-user", JSON.stringify(userProfile));
+    
+    console.log("Google login successful:", userProfile);
+};
+
+// Initialize Google Identity Services
+function initGoogleAuth() {
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse
+    });
+
+    google.accounts.id.renderButton(
+        document.querySelector(".google-login-container"),
+        {} // Use default button format
+    );
+
+    google.accounts.id.prompt(); // Automatically prompt for login if possible
+}
+
+// Check for existing login on page load
+const savedUser = localStorage.getItem("solomons-user");
+if (savedUser) {
+    userProfile = JSON.parse(savedUser);
+    googleSigninDiv.style.display = "none";
+    userProfileEl.style.display = "flex";
+    userPhotoEl.src = userProfile.picture;
+    userNameEl.textContent = userProfile.name;
+} else {
+    initGoogleAuth();
 }
 
 function updateRealmSelect() {
@@ -146,12 +209,10 @@ function showSearchResults(query) {
 }
 
 function jumpToTask(task) {
-    // Jump to task location
     if (task.column !== "archive" && activeView !== "all") {
         setActiveView("all");
     }
     
-    // Highlight the task
     const highlightId = `task-${task.id}`;
     state.tasks.forEach(t => {
         const el = document.querySelector(`[data-task-id="${t.id}"]`);
@@ -295,7 +356,6 @@ function saveTask() {
 }
 
 function getTaskColor(column, realm) {
-    // Realm color takes priority over column color
     if (realm && state.realms[realm]) {
         return state.realms[realm].color;
     }
@@ -335,7 +395,6 @@ function renderRealmList() {
         realmListEl.appendChild(pill);
     });
     
-    // Add Realm button
     const addRealmBtn = document.createElement("div");
     addRealmBtn.className = "realm-add-btn";
     addRealmBtn.innerHTML = '<span>+</span> Add Realm';
@@ -420,7 +479,6 @@ function renderRealmTasks() {
             </div>
         `;
         
-        // ➤ Add to Chambers
         card.querySelector(".realm-add-to-board").addEventListener("click", e => {
             e.stopPropagation();
             task.column = "backlog";
@@ -429,13 +487,11 @@ function renderRealmTasks() {
             renderAllViews();
         });
         
-        // Edit
         card.querySelector(".icon-btn[title='Edit']").addEventListener("click", e => {
             e.stopPropagation();
             openModal(task.column, task, currentRealm);
         });
         
-        // Delete
         card.querySelector(".delete").addEventListener("click", async e => {
             e.stopPropagation();
             const ok = await openDeleteDialog();
@@ -446,7 +502,6 @@ function renderRealmTasks() {
             }
         });
         
-        // Card click = edit
         card.addEventListener("click", e => {
             if (!e.target.closest(".icon-btn")) openModal(task.column, task, currentRealm);
         });
@@ -463,42 +518,35 @@ function renderCalendar() {
     const monthSpan = document.getElementById("calendar-month");
     const yearSpan = document.getElementById("calendar-year");
     
-    // Set month/year display
     monthSpan.textContent = currentCalendarDate.toLocaleDateString('en-US', { month: 'long' });
     yearSpan.textContent = currentCalendarDate.getFullYear();
     
-    // Get first day of month and tasks for this month
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+    const startingDayOfWeek = firstDay.getDay();
     
-    // Filter archive tasks for this month
     const monthTasks = state.tasks.filter(task => 
         task.column === "archive" && 
         task.date >= firstDay.toISOString().slice(0, 10) && 
         task.date <= lastDay.toISOString().slice(0, 10)
     );
     
-    // Clear grid (keep weekdays)
     const dayCells = grid.querySelectorAll(".calendar-day");
     dayCells.forEach(cell => cell.remove());
     
-    // Add empty cells for days before month start
     for (let i = 0; i < startingDayOfWeek; i++) {
         const emptyCell = document.createElement("div");
         emptyCell.className = "calendar-day calendar-empty";
         grid.appendChild(emptyCell);
     }
     
-    // Add days of month
     for (let day = 1; day <= lastDay.getDate(); day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const cell = document.createElement("div");
         cell.className = "calendar-day";
         
-        // Check if this day has tasks
         const dayTasks = monthTasks.filter(task => task.date === dateStr);
         if (dayTasks.length > 0) {
             cell.classList.add("calendar-has-tasks");
@@ -511,7 +559,6 @@ function renderCalendar() {
             ${dayTasks.length > 0 ? `<div class="calendar-task-dot" style="background: ${getTaskColorForDot(dayTasks[0])}"></div>` : ''}
         `;
         
-        // Click to view/edit tasks for this day
         cell.addEventListener("click", () => showDayTasks(dateStr, dayTasks));
         
         grid.appendChild(cell);
@@ -537,7 +584,6 @@ function showDayTasks(dateStr, tasks) {
     alert(`Decrees for ${dateStr}:\n\n${taskList}\n\nClick Edit on any task in "All Chambers" to modify.`);
 }
 
-// Calendar navigation
 document.getElementById("prev-month").addEventListener("click", () => {
     currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
     renderCalendar();
@@ -582,7 +628,7 @@ function setActiveView(view) {
             realmViewEl.style.display = "none";
             mainTitleEl.textContent = "Royal Calendar";
             mainSubtitleEl.textContent = "Archive decrees by date";
-            currentCalendarDate = new Date(); // Reset to current month
+            currentCalendarDate = new Date();
             renderCalendar();
             break;
     }
@@ -743,7 +789,6 @@ function updateCounts() {
 
 columnSelect.addEventListener("change", updateDateRowVisibility);
 
-// Search functionality
 let searchTimeout;
 searchInput.addEventListener("input", () => {
     clearTimeout(searchTimeout);
@@ -777,5 +822,31 @@ function renderAllViews() {
 
 // Initialize
 updateRealmSelect();
+initGoogleAuth(); // Initialize Google Auth
 renderAllViews();
 setActiveView("all");
+// ========== GOOGLE PROFILE POPUP ==========
+let profilePopup = document.getElementById('profile-popup');
+let popupNameEl = document.getElementById('popup-name');
+let popupEmailEl = document.getElementById('popup-email');
+
+// Profile popup click handler
+document.getElementById('user-profile').addEventListener('click', (e) => {
+    e.stopPropagation();
+    profilePopup.classList.add('show');
+});
+
+// Close popup on outside click
+document.addEventListener('click', () => {
+    profilePopup.classList.remove('show');
+    searchDropdown.style.display = 'none'; // Also close search
+});
+
+// Logout handler
+document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.removeItem('solomons-user');
+    userProfile = null;
+    googleSigninDiv.style.display = 'block';
+    userProfileEl.style.display = 'none';
+    profilePopup.classList.remove('show');
+});

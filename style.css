@@ -1315,3 +1315,133 @@ body {
 		margin: 16px;
 	}
 }
+/* Google Login & Profile Popup - Compatible with your castle theme */
+.google-login-container {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#user-profile {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+#user-profile:hover {
+    background: rgba(245, 211, 139, 0.12);
+    transform: scale(1.05);
+}
+
+.profile-pic {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(245, 211, 139, 0.4);
+    transition: all var(--transition-fast);
+}
+
+.profile-pic:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(245, 211, 139, 0.3);
+}
+
+.profile-popup {
+    position: absolute;
+    top: 44px;
+    right: -8px;
+    background: radial-gradient(circle at top, rgba(31, 40, 56, 0.98), rgba(5, 9, 16, 0.98));
+    backdrop-filter: blur(22px);
+    border: 1px solid rgba(245, 211, 139, 0.25);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    min-width: 260px;
+    z-index: 1001;
+    box-shadow: var(--shadow-large);
+    display: none;
+    animation: slideDown 0.2s ease-out;
+}
+
+.profile-popup.show {
+    display: block;
+}
+
+.popup-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.popup-content h4 {
+    color: var(--text-main);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.popup-content p {
+    color: var(--muted);
+    font-size: 13px;
+    word-break: break-all;
+    line-height: 1.4;
+    margin: 0;
+    padding: 4px 0;
+}
+
+#logout-btn {
+    align-self: flex-end;
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+/* Google Sign-In Button - Castle theme override */
+.g_id_signin {
+    --google-button-size: 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(245, 211, 139, 0.3) !important;
+    background: rgba(7, 13, 26, 0.9) !important;
+}
+
+.g_id_signin[data-shape="circle"] {
+    border-radius: 50% !important;
+}
+
+/* Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .profile-popup {
+        min-width: 240px;
+        right: 0;
+        left: 0;
+        margin: 0 auto;
+    }
+}
+
+/* Hide Google default styling conflicts */
+.g_id_signin iframe {
+    border-radius: 50% !important;
+}

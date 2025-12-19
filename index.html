@@ -1,282 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<title>Solomon's Order</title>
-		<link rel="stylesheet" href="style.css" />
-	</head>
-	<body>
-		<div class="app-shell">
-			<!-- Sidebar -->
-			<aside class="sidebar">
-				<div class="brand">
-					<div class="brand-icon"></div>
-					<div class="brand-title">
-						<h1>Solomon's Order</h1>
-						<span>Castle task registry</span>
-					</div>
-				</div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-signin-client_id" content="837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com">
+    <title>Solomon's Order</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <!-- Google Sign In - Profile size button -->
+                    <div class="google-login-container">
+                        <div id="g_id_onload"
+                             data-client_id="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"
+                             data-callback="handleCredentialResponse"
+                             data-auto_prompt="false">
+                        </div>
+                        <div class="g_id_signin"
+                             data-type="standard"
+                             data-size="small"
+                             data-theme="outline"
+                             data-text="signin"
+                             data-shape="circle"
+                             data-logo_alignment="center">
+                        </div>
+                        
+                        <!-- User profile after login - small profile button -->
+                        <div id="user-profile" class="user-profile" style="display: none;">
+                            <img id="user-photo" alt="Profile" class="profile-pic">
+                            <div class="profile-popup" id="profile-popup" style="display: none;">
+                                <div class="popup-content">
+                                    <h4>Welcome, <span id="popup-name"></span>!</h4>
+                                    <p id="popup-email"></p>
+                                    <button class="btn-primary" id="logout-btn">Logout</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="brand-title">
+                    <h1>Solomon's Order</h1>
+                    <span>Castle task registry</span>
+                </div>
+            </div>
+            
+            <div class="search-container">
+                <div class="search-box" id="search-container">
+                    <input id="search-input" type="text" placeholder="Search decrees, quests...">
+                    <div class="search-dropdown" id="search-dropdown">
+                        <!-- Dynamic search results -->
+                    </div>
+                </div>
+            </div>
 
-				<div class="search-container">
-					<div class="search-box" id="search-container">
-						<input
-							id="search-input"
-							type="text"
-							placeholder="Search decrees, quests…"
-						/>
-						<div class="search-dropdown" id="search-dropdown">
-							<!-- Dynamic search results -->
-						</div>
-					</div>
-				</div>
+            <section class="sidebar-section">
+                <div class="section-label">Views</div>
+                <ul class="nav-list">
+                    <li class="nav-item active" id="tab-all">
+                        <span>All Chambers</span>
+                        <span class="nav-item-badge" id="total-count">0</span>
+                    </li>
+                    <li class="nav-item" id="tab-today">
+                        <span>Today</span>
+                        <span class="nav-item-badge" id="today-count">0</span>
+                    </li>
+                    <li class="nav-item" id="tab-calendar">
+                        <span>Thy Calendar</span>
+                        <span class="nav-item-badge" id="calendar-count">0</span>
+                    </li>
+                </ul>
+            </section>
 
-				<section class="sidebar-section">
-					<div class="section-label">Views</div>
-					<ul class="nav-list">
-						<li class="nav-item active" id="tab-all">
-							<span>🏰 <span>All Chambers</span></span>
-							<span class="nav-item-badge" id="total-count">0</span>
-						</li>
-						<li class="nav-item" id="tab-today">
-							<span>🌅 <span>Today</span></span>
-							<span class="nav-item-badge" id="today-count">0</span>
-						</li>
-						<li class="nav-item" id="tab-calendar">
-							<span>📜 <span>Thy Calendar</span></span>
-							<span class="nav-item-badge" id="calendar-count">0</span>
-						</li>
-					</ul>
-				</section>
+            <section class="sidebar-section">
+                <div class="section-label">Realm Tags</div>
+                <div class="realm-list" id="realm-list">
+                    <!-- Dynamic realms populated by JS -->
+                </div>
+            </section>
 
-				<section class="sidebar-section">
-					<div class="section-label">Realm Tags</div>
-					<div class="realm-list" id="realm-list">
-						<!-- Dynamic realms populated by JS -->
-					</div>
-				</section>
+            <div class="sidebar-footer">
+                <span><strong>Auto-saved</strong> decrees</span>
+                <span>Drag cards between chambers</span>
+            </div>
+        </aside>
 
-				<div class="sidebar-footer">
-					<span>🕯️ <strong>Auto-saved</strong> decrees</span>
-					<span>💫 Drag cards between chambers</span>
-				</div>
-			</aside>
+        <!-- Main content -->
+        <main class="main">
+            <header class="main-header">
+                <div class="title-block">
+                    <h2 id="main-title">Sticky Wall of Decrees</h2>
+                    <p id="main-subtitle">Drag parchments between chambers, tag with realms, check Today scroll.</p>
+                </div>
+                <div class="header-actions">
+                    <button id="new-card-btn" class="btn-primary">
+                        <span>New Decree</span>
+                    </button>
+                </div>
+            </header>
 
-			<!-- Main -->
-			<main class="main">
-				<header class="main-header">
-					<div class="title-block">
-						<h2 id="main-title">Sticky Wall of Decrees</h2>
-						<p id="main-subtitle">
-							Drag parchments between chambers, tag with realms, check Today scroll.
-						</p>
-					</div>
-					<div class="header-actions">
-						<button id="new-card-btn" class="btn-primary">
-							<span>＋</span> New Decree
-						</button>
-					</div>
-				</header>
+            <!-- Board view (All Chambers) -->
+            <section class="board" id="board">
+                <div class="column" data-column="backlog">
+                    <div class="column-header">
+                        <div class="column-title">Backlog <span>Unassigned scrolls</span></div>
+                        <span class="column-count" data-column-count="backlog">0</span>
+                    </div>
+                    <div class="column-body" data-column-body="backlog"></div>
+                    <button class="add-card-slot" data-add-to="backlog">Add decree</button>
+                </div>
 
-				<!-- Board view (All Chambers) -->
-				<section class="board" id="board">
-					<div class="column" data-column="backlog">
-						<div class="column-header">
-							<div class="column-title">
-								Backlog
-								<span>Unassigned scrolls</span>
-							</div>
-							<span class="column-count" data-column-count="backlog">0</span>
-						</div>
-						<div class="column-body" data-column-body="backlog"></div>
-						<button class="add-card-slot" data-add-to="backlog">
-							＋ Add decree
-						</button>
-					</div>
+                <div class="column today-column" data-column="today">
+                    <div class="column-header">
+                        <div class="column-title">Today Board <span>For drag-and-drop</span></div>
+                        <span class="column-count" data-column-count="today">0</span>
+                    </div>
+                    <div class="column-body" data-column-body="today"></div>
+                    <button class="add-card-slot" data-add-to="today">Add decree</button>
+                </div>
 
-					<div class="column" data-column="today-column">
-						<div class="column-header">
-							<div class="column-title">
-								Today (Board)
-								<span>For drag-and-drop</span>
-							</div>
-							<span class="column-count" data-column-count="today">0</span>
-						</div>
-						<div class="column-body" data-column-body="today"></div>
-						<button class="add-card-slot" data-add-to="today">
-							＋ Add decree
-						</button>
-					</div>
+                <div class="column" data-column="in-progress">
+                    <div class="column-header">
+                        <div class="column-title">In Motion <span>Knights dispatched</span></div>
+                        <span class="column-count" data-column-count="in-progress">0</span>
+                    </div>
+                    <div class="column-body" data-column-body="in-progress"></div>
+                    <button class="add-card-slot" data-add-to="in-progress">Add decree</button>
+                </div>
 
-					<div class="column" data-column="in-progress">
-						<div class="column-header">
-							<div class="column-title">
-								In Motion
-								<span>Knights dispatched</span>
-							</div>
-							<span class="column-count" data-column-count="in-progress">0</span>
-						</div>
-						<div class="column-body" data-column-body="in-progress"></div>
-						<button class="add-card-slot" data-add-to="in-progress">
-							＋ Add decree
-						</button>
-					</div>
+                <div class="column" data-column="done">
+                    <div class="column-header">
+                        <div class="column-title">Completed <span>Sealed & archived</span></div>
+                        <span class="column-count" data-column-count="done">0</span>
+                    </div>
+                    <div class="column-body" data-column-body="done"></div>
+                    <button class="add-card-slot" data-add-to="done">Add decree</button>
+                </div>
+            </section>
 
-					<div class="column" data-column="done">
-						<div class="column-header">
-							<div class="column-title">
-								Completed
-								<span>Sealed & archived</span>
-							</div>
-							<span class="column-count" data-column-count="done">0</span>
-						</div>
-						<div class="column-body" data-column-body="done"></div>
-						<button class="add-card-slot" data-add-to="done">
-							＋ Add decree
-						</button>
-					</div>
-				</section>
+            <!-- Realm Tag View -->
+            <section class="realm-view" id="realm-view" style="display: none;">
+                <div class="realm-view-header">
+                    <div class="realm-title-section">
+                        <div class="realm-title-main">
+                            <span class="realm-title-icon" id="realm-title-icon"></span>
+                            <h2 id="realm-title">Realm Name</h2>
+                        </div>
+                        <span class="realm-task-count" id="realm-task-count">0 tasks</span>
+                    </div>
+                    <button class="btn-primary-large" id="realm-add-btn">
+                        <span class="btn-icon-large"></span>
+                        <span>Add Decree</span>
+                    </button>
+                </div>
+                <div class="realm-tasks-grid" id="realm-tasks-grid"></div>
+                <div class="realm-empty" id="realm-empty">
+                    <span>This realm stands empty.</span>
+                    <span>Add the first decree above or tag tasks with this realm.</span>
+                </div>
+            </section>
 
-				<!-- Realm Tag View -->
-				<section class="realm-view" id="realm-view">
-					<div class="realm-view-header">
-						<div class="realm-title-section">
-							<div class="realm-title-main">
-								<span class="realm-title-icon" id="realm-title-icon"></span>
-								<h2 id="realm-title">Realm Name</h2>
-							</div>
-							<span class="realm-task-count" id="realm-task-count">0 tasks</span>
-						</div>
-						<button class="btn-primary-large" id="realm-add-btn">
-							<span class="btn-icon-large">＋</span>
-							<span>Add Decree</span>
-						</button>
-					</div>
-					<div class="realm-tasks-grid" id="realm-tasks-grid"></div>
-					<div class="realm-empty" id="realm-empty">
-						<span>This realm stands empty.</span>
-						<span>Add the first decree above or tag tasks with this realm.</span>
-					</div>
-				</section>
+            <!-- Today checklist view -->
+            <section class="today-checklist-panel" id="today-checklist-panel" style="display: none;">
+                <div class="today-header">
+                    <div>
+                        <h3>Today's Ancient Scroll</h3>
+                        <p>Check off decrees as they are fulfilled. Completed items fade away.</p>
+                    </div>
+                    <button id="add-today-inline" class="btn-ghost-strong">Add to Today</button>
+                </div>
+                <ul class="today-list" id="today-list"></ul>
+                <div class="today-empty" id="today-empty">
+                    All is quiet in the realm. No decrees for today.
+                </div>
+            </section>
 
-				<!-- Today checklist view -->
-				<section class="today-checklist-panel" id="today-checklist-panel">
-					<div class="today-header">
-						<div>
-							<h3>Today's Ancient Scroll</h3>
-							<p>
-								Check off decrees as they are fulfilled. Completed items fade away.
-							</p>
-						</div>
-						<button id="add-today-inline" class="btn-ghost-strong">
-							＋ Add to Today
-						</button>
-					</div>
-					<ul class="today-list" id="today-list"></ul>
-					<div class="today-empty" id="today-empty">
-						All is quiet in the realm. No decrees for today.
-					</div>
-				</section>
+            <!-- Calendar view -->
+            <section class="calendar-panel" id="calendar-panel" style="display: none;">
+                <div class="calendar-header">
+                    <button class="icon-btn icon-btn-soft" id="prev-month">&lt;</button>
+                    <div class="calendar-title">
+                        <span id="calendar-month"></span>
+                        <span id="calendar-year"></span>
+                    </div>
+                    <button class="icon-btn icon-btn-soft" id="next-month">&gt;</button>
+                </div>
+                <div class="calendar-grid" id="calendar-grid">
+                    <div class="calendar-weekday">Sun</div>
+                    <div class="calendar-weekday">Mon</div>
+                    <div class="calendar-weekday">Tue</div>
+                    <div class="calendar-weekday">Wed</div>
+                    <div class="calendar-weekday">Thu</div>
+                    <div class="calendar-weekday">Fri</div>
+                    <div class="calendar-weekday">Sat</div>
+                </div>
+                <div class="calendar-legend">
+                    <span class="legend-dot legend-has-task"></span>
+                    Archive decrees scheduled
+                </div>
+            </section>
+        </main>
+    </div>
 
-				<!-- Calendar view -->
-				<section class="calendar-panel" id="calendar-panel">
-					<div class="calendar-header">
-						<button class="icon-btn icon-btn-soft" id="prev-month">&lt;</button>
-						<div class="calendar-title">
-							<span id="calendar-month"></span>
-							<span id="calendar-year"></span>
-						</div>
-						<button class="icon-btn icon-btn-soft" id="next-month">&gt;</button>
-					</div>
-					<div class="calendar-grid" id="calendar-grid">
-						<div class="calendar-weekday">Sun</div>
-						<div class="calendar-weekday">Mon</div>
-						<div class="calendar-weekday">Tue</div>
-						<div class="calendar-weekday">Wed</div>
-						<div class="calendar-weekday">Thu</div>
-						<div class="calendar-weekday">Fri</div>
-						<div class="calendar-weekday">Sat</div>
-					</div>
-					<div class="calendar-legend">
-						<span class="legend-dot legend-has-task"></span> Archive decrees scheduled
-					</div>
-				</section>
-			</main>
-		</div>
+    <!-- Delete dialog -->
+    <div class="dialog-backdrop" id="dialog-backdrop">
+        <div class="dialog">
+            <h4 id="dialog-title">Discard this decree?</h4>
+            <p id="dialog-message">Once banished from the archives, this decree cannot be restored.</p>
+            <div class="dialog-actions">
+                <button class="btn-ghost" id="dialog-cancel">Keep Decree</button>
+                <button class="btn-primary" id="dialog-confirm">Banish</button>
+            </div>
+        </div>
+    </div>
 
-		<!-- Delete dialog -->
-		<div class="dialog-backdrop" id="dialog-backdrop">
-			<div class="dialog">
-				<h4 id="dialog-title">Discard this decree?</h4>
-				<p id="dialog-message">
-					Once banished from the archives, this decree cannot be restored.
-				</p>
-				<div class="dialog-actions">
-					<button class="btn-ghost" id="dialog-cancel">Keep Decree</button>
-					<button class="btn-primary" id="dialog-confirm">Banish</button>
-				</div>
-			</div>
-		</div>
+    <!-- Task modal -->
+    <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <h3 id="modal-title">New Decree</h3>
+                <button id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <label for="task-title">Title</label>
+                    <input id="task-title" type="text" placeholder="Summon the royal council...">
+                </div>
+                <div>
+                    <label for="task-body">Details</label>
+                    <textarea id="task-body" placeholder="Describe this order for the scribes..."></textarea>
+                </div>
+                <div>
+                    <label for="task-tag">Tag</label>
+                    <input id="task-tag" type="text" placeholder="Council, Supplies, Patrol">
+                </div>
+                <div>
+                    <label for="task-realm">Realm/Tag</label>
+                    <select id="task-realm">
+                        <option value="">No Realm</option>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label for="task-column">Chamber</label>
+                    <select id="task-column">
+                        <option value="backlog">Backlog</option>
+                        <option value="today">Today Checklist</option>
+                        <option value="in-progress">In Motion</option>
+                        <option value="done">Completed</option>
+                        <option value="archive">Archive Calendar</option>
+                    </select>
+                </div>
+                <div id="task-date-row" style="display: none;">
+                    <label for="task-date">Decree date</label>
+                    <input type="date" id="task-date">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost" id="modal-cancel-btn">Cancel</button>
+                <button class="btn-primary" id="modal-save-btn">Save Decree</button>
+            </div>
+        </div>
+    </div>
 
-		<!-- Task modal -->
-		<div class="modal-backdrop" id="modal-backdrop">
-			<div class="modal" role="dialog" aria-modal="true">
-				<div class="modal-header">
-					<h3 id="modal-title">New Decree</h3>
-					<button id="modal-close-btn">&times;</button>
-				</div>
-				<div class="modal-body">
-					<div>
-						<label for="task-title">Title</label>
-						<input
-							id="task-title"
-							type="text"
-							placeholder="Summon the royal council…"
-						/>
-					</div>
-					<div>
-						<label for="task-body">Details</label>
-						<textarea
-							id="task-body"
-							placeholder="Describe this order for the scribes…"
-						></textarea>
-					</div>
-					<div>
-						<label for="task-tag">Tag</label>
-						<input
-							id="task-tag"
-							type="text"
-							placeholder="Council, Supplies, Patrol…"
-						/>
-					</div>
-					<div>
-						<label for="task-realm">Realm Tag</label>
-						<select id="task-realm">
-							<option value="">No Realm</option>
-							<!-- Populated by JS -->
-						</select>
-					</div>
-					<div>
-						<label for="task-column">Chamber</label>
-						<select id="task-column">
-							<option value="backlog">Backlog</option>
-							<option value="today">Today (Checklist)</option>
-							<option value="in-progress">In Motion</option>
-							<option value="done">Completed</option>
-							<option value="archive">Archive (Calendar)</option>
-						</select>
-					</div>
-					<div id="task-date-row">
-						<label for="task-date">Decree date</label>
-						<input type="date" id="task-date" />
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button class="btn-ghost" id="modal-cancel-btn">Cancel</button>
-					<button class="btn-primary" id="modal-save-btn">Save Decree</button>
-				</div>
-			</div>
-		</div>
-
-		<script src="app.js" defer></script>
-	</body>
+    <script src="app.js" defer></script>
+</body>
 </html>
