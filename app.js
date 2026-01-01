@@ -125,8 +125,15 @@ const userProfileEl = document.getElementById("user-profile");
 const userPhotoEl = document.getElementById("user-photo");
 const userNameEl = document.getElementById("user-name");
 
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    return formatDateLocal(new Date());
 }
 
 // Google Auth Handler
@@ -616,8 +623,8 @@ function renderCalendar() {
 
     const monthTasks = state.tasks.filter(task =>
         (task.column === "archive" || task.realm === "Thy Strategy") && task.date &&
-        task.date >= firstDay.toISOString().slice(0, 10) &&
-        task.date <= lastDay.toISOString().slice(0, 10)
+        task.date >= formatDateLocal(firstDay) &&
+        task.date <= formatDateLocal(lastDay)
     );
 
     const dayCells = grid.querySelectorAll(".calendar-day");
