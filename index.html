@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-signin-client_id" content="837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com">
+    <meta name="google-signin-client_id"
+        content="837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com">
     <title>Solomon's Order</title>
     <link rel="stylesheet" href="style.css">
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body>
     <div class="app-shell">
         <!-- Sidebar -->
@@ -17,20 +20,13 @@
                 <div class="brand-icon">
                     <!-- Google Sign In - Profile size button -->
                     <div class="google-login-container">
-                        <div id="g_id_onload"
-                             data-client_id="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"
-                             data-callback="handleCredentialResponse"
-                             data-auto_prompt="false">
+                        <div id="g_id_onload" data-client_id="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"
+                            data-callback="handleCredentialResponse" data-auto_prompt="false">
                         </div>
-                        <div class="g_id_signin"
-                             data-type="standard"
-                             data-size="small"
-                             data-theme="outline"
-                             data-text="signin"
-                             data-shape="circle"
-                             data-logo_alignment="center">
+                        <div class="g_id_signin" data-type="standard" data-size="small" data-theme="outline"
+                            data-text="signin" data-shape="circle" data-logo_alignment="center">
                         </div>
-                        
+
                         <!-- User profile after login - small profile button -->
                         <div id="user-profile" class="user-profile" style="display: none;">
                             <img id="user-photo" alt="Profile" class="profile-pic">
@@ -49,7 +45,7 @@
                     <span>Castle task registry</span>
                 </div>
             </div>
-            
+
             <div class="search-container">
                 <div class="search-box" id="search-container">
                     <input id="search-input" type="text" placeholder="Search decrees, quests...">
@@ -200,8 +196,9 @@
                     <div class="calendar-weekday">Sat</div>
                 </div>
                 <div class="calendar-legend">
-                    <span class="legend-dot legend-has-task"></span>
-                    Archive decrees scheduled
+                    <span class="legend-dot priority-deadline"></span> Deadline
+                    <span class="legend-dot priority-compulsory"></span> Compulsory
+                    <span class="legend-dot priority-optional"></span> Optional
                 </div>
             </section>
         </main>
@@ -247,13 +244,30 @@
                     </select>
                 </div>
                 <div>
+                    <label>Priority</label>
+                    <div class="priority-selector">
+                        <label class="priority-option">
+                            <input type="radio" name="task-priority" value="deadline">
+                            <span class="priority-pill deadline">Deadline</span>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" name="task-priority" value="compulsory" checked>
+                            <span class="priority-pill compulsory">Compulsory</span>
+                        </label>
+                        <label class="priority-option">
+                            <input type="radio" name="task-priority" value="optional">
+                            <span class="priority-pill optional">Optional</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
                     <label for="task-column">Chamber</label>
                     <select id="task-column">
                         <option value="backlog">Backlog</option>
                         <option value="today">Today Checklist</option>
                         <option value="in-progress">In Motion</option>
                         <option value="done">Completed</option>
-                        <option value="archive">Archive Calendar</option>
+                        <option value="archive">Strategy Archive</option>
                     </select>
                 </div>
                 <div id="task-date-row" style="display: none;">
@@ -262,6 +276,8 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn-danger" id="modal-delete-btn" style="display: none; margin-right: auto;">Delete
+                    Decree</button>
                 <button class="btn-ghost" id="modal-cancel-btn">Cancel</button>
                 <button class="btn-primary" id="modal-save-btn">Save Decree</button>
             </div>
@@ -270,4 +286,5 @@
 
     <script src="app.js" defer></script>
 </body>
+
 </html>

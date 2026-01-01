@@ -4,36 +4,61 @@ const STORAGE_KEY = "solomons-order-v3";
 const GOOGLE_CLIENT_ID = "837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com";
 
 function loadState() {
+    const defaultRealms = {
+        "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
+        "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
+        "Thy Strategy": { color: "pink", icon: "📜", hsl: "330" }
+    };
+
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
             return {
                 tasks: [],
-                realms: {
-                    "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
-                    "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
-                    "Archives": { color: "pink", icon: "📜", hsl: "330" }
-                },
+                realms: defaultRealms,
                 counter: 1
             };
         }
-        const state = JSON.parse(raw);
-        if (!state.realms) {
-            state.realms = {
-                "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
-                "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
-                "Archives": { color: "pink", icon: "📜", hsl: "330" }
-            };
+        let saved = JSON.parse(raw);
+        if (!saved.tasks) saved.tasks = [];
+        if (!saved.realms) saved.realms = defaultRealms;
+        if (!saved.counter) saved.counter = saved.tasks.length + 1;
+
+        // Migrations
+        if (saved.realms["Archives"]) {
+            saved.realms["Thy Strategy"] = saved.realms["Archives"];
+            saved.realms["Thy Strategy"].icon = saved.realms["Thy Strategy"].icon || "📜";
+            delete saved.realms["Archives"];
         }
-        return state;
+
+        // Ensure default realms always exist
+        Object.entries(defaultRealms).forEach(([name, config]) => {
+            if (!saved.realms[name]) {
+                saved.realms[name] = config;
+            }
+        });
+
+        // Ensure tasks with dates or realm synchronization
+        saved.tasks.forEach(task => {
+            if (task.date) {
+                task.realm = "Thy Strategy";
+                task.column = "archive";
+            } else if (task.realm === "Archives") {
+                task.realm = "Thy Strategy";
+                task.column = "archive";
+                task.date = todayISO();
+            } else if (task.realm === "Thy Strategy") {
+                task.column = "archive";
+                if (!task.date) task.date = todayISO();
+            }
+        });
+
+        return saved;
     } catch (e) {
+        console.error("Failed to load state:", e);
         return {
             tasks: [],
-            realms: {
-                "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
-                "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
-                "Archives": { color: "pink", icon: "📜", hsl: "330" }
-            },
+            realms: defaultRealms,
             counter: 1
         };
     }
@@ -83,6 +108,7 @@ const dateInput = document.getElementById("task-date");
 const newCardBtn = document.getElementById("new-card-btn");
 const addTodayInlineBtn = document.getElementById("add-today-inline");
 const realmAddBtn = document.getElementById("realm-add-btn");
+const modalDeleteBtn = document.getElementById("modal-delete-btn");
 
 const tabAll = document.getElementById("tab-all");
 const tabToday = document.getElementById("tab-today");
@@ -104,7 +130,7 @@ function todayISO() {
 }
 
 // Google Auth Handler
-window.handleCredentialResponse = function(response) {
+window.handleCredentialResponse = function (response) {
     // Decode JWT token
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
     userProfile = {
@@ -112,18 +138,18 @@ window.handleCredentialResponse = function(response) {
         picture: payload.picture,
         email: payload.email
     };
-    
+
     // Hide Google button, show profile
     googleSigninDiv.style.display = "none";
     userProfileEl.style.display = "flex";
-    
+
     // Update profile display
     userPhotoEl.src = userProfile.picture;
     userNameEl.textContent = userProfile.name;
-    
+
     // Save to localStorage
     localStorage.setItem("solomons-user", JSON.stringify(userProfile));
-    
+
     console.log("Google login successful:", userProfile);
 };
 
@@ -167,21 +193,21 @@ function updateRealmSelect() {
 /* ---------- Search Dropdown ---------- */
 function showSearchResults(query) {
     const results = state.tasks
-        .filter(task => 
+        .filter(task =>
             task.title.toLowerCase().includes(query.toLowerCase()) ||
             (task.body || "").toLowerCase().includes(query.toLowerCase()) ||
             (task.tag || "").toLowerCase().includes(query.toLowerCase()) ||
             (task.realm || "").toLowerCase().includes(query.toLowerCase())
         )
         .slice(0, 8);
-    
+
     searchDropdown.innerHTML = "";
-    
+
     if (query.length < 2) {
         searchDropdown.style.display = "none";
         return;
     }
-    
+
     if (results.length === 0) {
         const noResults = document.createElement("div");
         noResults.className = "search-result no-results";
@@ -204,7 +230,7 @@ function showSearchResults(query) {
             searchDropdown.appendChild(result);
         });
     }
-    
+
     searchDropdown.style.display = "block";
 }
 
@@ -212,23 +238,23 @@ function jumpToTask(task) {
     if (task.column !== "archive" && activeView !== "all") {
         setActiveView("all");
     }
-    
+
     const highlightId = `task-${task.id}`;
     state.tasks.forEach(t => {
         const el = document.querySelector(`[data-task-id="${t.id}"]`);
         if (el) el.classList.remove("task-highlight");
     });
-    
+
     setTimeout(() => {
-        const el = document.querySelector(`[data-task-id="${task.id}"]`) || 
-                   document.querySelector(`[data-id="${task.id}"]`);
+        const el = document.querySelector(`[data-task-id="${task.id}"]`) ||
+            document.querySelector(`[data-id="${task.id}"]`);
         if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "center" });
             el.classList.add("task-highlight");
             setTimeout(() => el.classList.remove("task-highlight"), 2000);
         }
     }, 300);
-    
+
     searchInput.value = "";
     searchDropdown.style.display = "none";
 }
@@ -236,7 +262,7 @@ function jumpToTask(task) {
 function getColumnDisplayName(column) {
     const names = {
         backlog: "Backlog",
-        today: "Today", 
+        today: "Today",
         "in-progress": "In Progress",
         done: "Done",
         archive: "Calendar"
@@ -263,7 +289,7 @@ dialogBackdrop.addEventListener("click", e => {
 });
 
 /* ---------- Modal Logic ---------- */
-function openModal(column = "backlog", task = null, autoRealm = null) {
+function openModal(column = "backlog", task = null, autoRealm = null, prefilledDate = null) {
     modalBackdrop.classList.add("open");
     document.body.style.overflow = "hidden";
     updateRealmSelect();
@@ -277,6 +303,12 @@ function openModal(column = "backlog", task = null, autoRealm = null) {
         columnSelect.value = task.column;
         realmSelect.value = task.realm || "";
         dateInput.value = task.date || "";
+        // Set priority
+        const priorityRadio = document.querySelector(`input[name="task-priority"][value="${task.priority || 'compulsory'}"]`);
+        if (priorityRadio) priorityRadio.checked = true;
+
+        // Show delete button when editing
+        modalDeleteBtn.style.display = "block";
     } else {
         editingId = null;
         modalTitleEl.textContent = "New Decree";
@@ -284,8 +316,21 @@ function openModal(column = "backlog", task = null, autoRealm = null) {
         bodyInput.value = "";
         tagInput.value = "";
         columnSelect.value = column;
-        realmSelect.value = autoRealm || "";
-        dateInput.value = "";
+
+        // SYNC LOGIC: If column is archive, default to Thy Strategy realm. Otherwise Great Hall.
+        if (column === "archive") {
+            realmSelect.value = "Thy Strategy";
+        } else {
+            realmSelect.value = autoRealm || "Great Hall";
+        }
+
+        dateInput.value = prefilledDate || "";
+        // Default priority
+        const defaultPriority = document.querySelector('input[name="task-priority"][value="compulsory"]');
+        if (defaultPriority) defaultPriority.checked = true;
+
+        // Hide delete button when creating new
+        modalDeleteBtn.style.display = "none";
     }
 
     updateDateRowVisibility();
@@ -298,9 +343,12 @@ function closeModal() {
 }
 
 function updateDateRowVisibility() {
-    if (columnSelect.value === "archive") {
+    // SYNC LOGIC: If Thy Strategy realm is selected, show date and treat as calendar task
+    if (columnSelect.value === "archive" || realmSelect.value === "Thy Strategy") {
         dateRow.style.display = "block";
         if (!dateInput.value) dateInput.value = todayISO();
+        if (realmSelect.value === "Thy Strategy") columnSelect.value = "archive";
+        else realmSelect.value = "Thy Strategy";
     } else {
         dateRow.style.display = "none";
     }
@@ -320,6 +368,17 @@ document.addEventListener("keydown", e => {
 });
 
 document.getElementById("modal-save-btn").addEventListener("click", saveTask);
+modalDeleteBtn.addEventListener("click", async () => {
+    if (editingId) {
+        const ok = await openDeleteDialog();
+        if (ok) {
+            state.tasks = state.tasks.filter(t => t.id !== editingId);
+            saveState();
+            renderAllViews();
+            closeModal();
+        }
+    }
+});
 
 function saveTask() {
     const title = titleInput.value.trim();
@@ -329,6 +388,9 @@ function saveTask() {
         setTimeout(() => { titleInput.style.borderColor = ""; }, 300);
         return;
     }
+
+    const selectedPriority = document.querySelector('input[name="task-priority"]:checked');
+    const priority = selectedPriority ? selectedPriority.value : 'compulsory';
 
     const taskData = {
         id: editingId || state.counter++,
@@ -340,8 +402,20 @@ function saveTask() {
         createdAt: editingId ? state.tasks.find(t => t.id === editingId)?.createdAt || Date.now() : Date.now(),
         color: getTaskColor(columnSelect.value, realmSelect.value),
         date: columnSelect.value === "archive" ? (dateInput.value || todayISO()) : null,
+        priority: priority,
         doneInChecklist: false
     };
+
+    // SYNC LOGIC: Enforce Thy Strategy Realm <-> Calendar Chamber sync
+    // Any task with a date MUST go to Thy Strategy and Archive column
+    if (taskData.date || taskData.column === "archive" || taskData.realm === "Thy Strategy") {
+        taskData.realm = "Thy Strategy";
+        taskData.column = "archive";
+        if (!taskData.date) taskData.date = dateInput.value || todayISO();
+    }
+
+    // Update color in case realm changed
+    taskData.color = getTaskColor(taskData.column, taskData.realm);
 
     if (editingId != null) {
         const existing = state.tasks.find(t => t.id === editingId);
@@ -366,9 +440,13 @@ function getTaskColor(column, realm) {
 /* ---------- Realm Management ---------- */
 function renderRealmList() {
     realmListEl.innerHTML = "";
-    
+
     Object.entries(state.realms).forEach(([name, config]) => {
-        const count = state.tasks.filter(t => t.realm === name).length;
+        // Special logic for Great Hall count (view of all tasks)
+        const count = name === "Great Hall"
+            ? state.tasks.length
+            : state.tasks.filter(t => t.realm === name).length;
+
         const pill = document.createElement("div");
         pill.className = `realm-pill realm-${config.color}`;
         pill.dataset.realm = name;
@@ -379,10 +457,15 @@ function renderRealmList() {
             </div>
             <span class="realm-count">${count}</span>
         `;
-        
+
         pill.addEventListener("click", () => openRealmView(name));
         pill.addEventListener("contextmenu", e => {
             e.preventDefault();
+            const protectedRealms = ["Great Hall", "War Room", "Thy Strategy"];
+            if (protectedRealms.includes(name)) {
+                alert(`The ${name} is a permanent part of the castle and cannot be demolished.`);
+                return;
+            }
             if (confirm(`Delete realm "${name}"? (${count} tasks will lose this tag)`)) {
                 delete state.realms[name];
                 state.tasks.forEach(task => { if (task.realm === name) task.realm = null; });
@@ -391,10 +474,10 @@ function renderRealmList() {
                 renderAllViews();
             }
         });
-        
+
         realmListEl.appendChild(pill);
     });
-    
+
     const addRealmBtn = document.createElement("div");
     addRealmBtn.className = "realm-add-btn";
     addRealmBtn.innerHTML = '<span>+</span> Add Realm';
@@ -419,46 +502,50 @@ function addNewRealm() {
 function openRealmView(realmName) {
     activeView = `realm:${realmName}`;
     currentRealm = realmName;
-    
+
     [tabAll, tabToday, tabCalendar].forEach(el => el.classList.remove("active"));
     boardEl.style.display = "none";
     todayChecklistPanel.style.display = "none";
     calendarPanel.style.display = "none";
     realmViewEl.style.display = "block";
-    
+
     const config = state.realms[realmName];
     mainTitleEl.textContent = `${config.icon} ${realmName}`;
     mainSubtitleEl.textContent = `Manage tasks tagged with ${realmName}`;
     realmTitleEl.textContent = realmName;
     realmTitleIconEl.textContent = config.icon;
     realmTitleIconEl.style.background = `hsl(${config.hsl}, 50%, 25%)`;
-    
+
     renderRealmTasks();
 }
 
 function renderRealmTasks() {
-    const tasks = state.tasks.filter(t => t.realm === currentRealm);
+    // Great Hall shows ALL tasks
+    const tasks = currentRealm === "Great Hall"
+        ? state.tasks
+        : state.tasks.filter(t => t.realm === currentRealm);
+
     const searchTerm = searchInput.value.trim().toLowerCase();
-    
+
     const filteredTasks = tasks.filter(t => {
-        return !searchTerm || 
+        return !searchTerm ||
             t.title.toLowerCase().includes(searchTerm) ||
             (t.body || "").toLowerCase().includes(searchTerm) ||
             (t.tag || "").toLowerCase().includes(searchTerm);
     });
-    
+
     realmTaskCountEl.textContent = `${filteredTasks.length} tasks`;
-    
+
     if (filteredTasks.length === 0) {
         realmTasksGridEl.style.display = "none";
         realmEmptyEl.style.display = "block";
         return;
     }
-    
+
     realmTasksGridEl.style.display = "grid";
     realmEmptyEl.style.display = "none";
     realmTasksGridEl.innerHTML = "";
-    
+
     filteredTasks.forEach(task => {
         const config = state.realms[currentRealm];
         const card = document.createElement("div");
@@ -478,7 +565,7 @@ function renderRealmTasks() {
                 </div>
             </div>
         `;
-        
+
         card.querySelector(".realm-add-to-board").addEventListener("click", e => {
             e.stopPropagation();
             task.column = "backlog";
@@ -486,12 +573,12 @@ function renderRealmTasks() {
             saveState();
             renderAllViews();
         });
-        
+
         card.querySelector(".icon-btn[title='Edit']").addEventListener("click", e => {
             e.stopPropagation();
             openModal(task.column, task, currentRealm);
         });
-        
+
         card.querySelector(".delete").addEventListener("click", async e => {
             e.stopPropagation();
             const ok = await openDeleteDialog();
@@ -501,11 +588,11 @@ function renderRealmTasks() {
                 renderAllViews();
             }
         });
-        
+
         card.addEventListener("click", e => {
             if (!e.target.closest(".icon-btn")) openModal(task.column, task, currentRealm);
         });
-        
+
         realmTasksGridEl.appendChild(card);
     });
 }
@@ -517,71 +604,209 @@ function renderCalendar() {
     const grid = document.getElementById("calendar-grid");
     const monthSpan = document.getElementById("calendar-month");
     const yearSpan = document.getElementById("calendar-year");
-    
+
     monthSpan.textContent = currentCalendarDate.toLocaleDateString('en-US', { month: 'long' });
     yearSpan.textContent = currentCalendarDate.getFullYear();
-    
+
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startingDayOfWeek = firstDay.getDay();
-    
-    const monthTasks = state.tasks.filter(task => 
-        task.column === "archive" && 
-        task.date >= firstDay.toISOString().slice(0, 10) && 
+
+    const monthTasks = state.tasks.filter(task =>
+        (task.column === "archive" || task.realm === "Thy Strategy") && task.date &&
+        task.date >= firstDay.toISOString().slice(0, 10) &&
         task.date <= lastDay.toISOString().slice(0, 10)
     );
-    
+
     const dayCells = grid.querySelectorAll(".calendar-day");
     dayCells.forEach(cell => cell.remove());
-    
+
     for (let i = 0; i < startingDayOfWeek; i++) {
         const emptyCell = document.createElement("div");
         emptyCell.className = "calendar-day calendar-empty";
         grid.appendChild(emptyCell);
     }
-    
+
     for (let day = 1; day <= lastDay.getDate(); day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const cell = document.createElement("div");
         cell.className = "calendar-day";
-        
+        cell.dataset.date = dateStr;
+
         const dayTasks = monthTasks.filter(task => task.date === dateStr);
         if (dayTasks.length > 0) {
             cell.classList.add("calendar-has-tasks");
             cell.dataset.tasks = dayTasks.length;
-            cell.title = `${dayTasks.length} decree(s): ${dayTasks.map(t => t.title).join(', ')}`;
         }
-        
+
+        // Build task pills HTML (max 3 shown)
+        const maxShown = 3;
+        const tasksToShow = dayTasks.slice(0, maxShown);
+        const remainingCount = dayTasks.length - maxShown;
+
+        const taskPillsHTML = tasksToShow.map(task => {
+            const priorityClass = `priority-${task.priority || 'compulsory'}`;
+            return `<div class="calendar-task-pill ${priorityClass}" data-task-id="${task.id}" title="${task.title}">${task.title}</div>`;
+        }).join('');
+
+        const moreIndicator = remainingCount > 0 ? `<div class="calendar-more-tasks">+${remainingCount} more</div>` : '';
+
         cell.innerHTML = `
-            <div class="calendar-day-number">${day}</div>
-            ${dayTasks.length > 0 ? `<div class="calendar-task-dot" style="background: ${getTaskColorForDot(dayTasks[0])}"></div>` : ''}
+            <div class="calendar-day-header">
+                <span class="calendar-day-number">${day}</span>
+                <button class="calendar-add-btn" title="Add task">+</button>
+            </div>
+            <div class="calendar-day-tasks">
+                ${taskPillsHTML}
+                ${moreIndicator}
+            </div>
         `;
-        
-        cell.addEventListener("click", () => showDayTasks(dateStr, dayTasks));
-        
+
+        // Add button click handler
+        cell.querySelector('.calendar-add-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openModal("archive", null, null, dateStr);
+        });
+
+        // Task pill click handlers for editing
+        cell.querySelectorAll('.calendar-task-pill').forEach(pill => {
+            pill.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const taskId = parseInt(pill.dataset.taskId);
+                const task = state.tasks.find(t => t.id === taskId);
+                if (task) {
+                    openModal(task.column, task, task.realm);
+                }
+            });
+        });
+
+        // Click on empty area to add task
+        cell.addEventListener('click', (e) => {
+            if (!e.target.closest('.calendar-task-pill') && !e.target.closest('.calendar-add-btn') && !e.target.closest('.calendar-more-tasks')) {
+                openModal("archive", null, null, dateStr);
+            }
+        });
+
+        // More indicator click - show all as a list at bottom
+        const moreEl = cell.querySelector('.calendar-more-tasks');
+        if (moreEl) {
+            moreEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showAllDayTasks(dateStr, dayTasks);
+            });
+        }
+
         grid.appendChild(cell);
     }
 }
 
+// Show all tasks for a day when there are more than 3
+function showAllDayTasks(dateStr, tasks) {
+    showDayTasksPopup(dateStr, tasks);
+}
+
 function getTaskColorForDot(task) {
-    return task.realm && state.realms[task.realm] ? 
-        `hsl(${state.realms[task.realm].hsl}, 60%, 50%)` : 
-        getTaskColor(task.column, task.realm);
+    const priorityColors = {
+        deadline: 'var(--priority-deadline)',
+        compulsory: 'var(--priority-compulsory)',
+        optional: 'var(--priority-optional)'
+    };
+    return priorityColors[task.priority] || priorityColors.compulsory;
 }
 
 function showDayTasks(dateStr, tasks) {
     if (tasks.length === 0) {
-        alert(`No decrees scheduled for ${dateStr}`);
+        // No tasks - open modal to add new task for this date
+        openModal("archive", null, null, dateStr);
         return;
     }
-    
-    const taskList = tasks.map(task => 
-        `${state.realms[task.realm]?.icon || ''} ${task.title}`
-    ).join('\n');
-    
-    alert(`Decrees for ${dateStr}:\n\n${taskList}\n\nClick Edit on any task in "All Chambers" to modify.`);
+
+    // Show popup with tasks for this day, allowing click to edit
+    showDayTasksPopup(dateStr, tasks);
+}
+
+function showDayTasksPopup(dateStr, tasks) {
+    // Remove any existing popup
+    const existingPopup = document.querySelector('.day-tasks-popup');
+    if (existingPopup) existingPopup.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'day-tasks-popup';
+
+    const priorityColors = {
+        deadline: 'var(--priority-deadline)',
+        compulsory: 'var(--priority-compulsory)',
+        optional: 'var(--priority-optional)'
+    };
+
+    popup.innerHTML = `
+        <div class="day-popup-header">
+            <h4>📅 ${dateStr}</h4>
+            <button class="popup-close-btn">&times;</button>
+        </div>
+        <div class="day-popup-tasks">
+            ${tasks.map(task => `
+                <div class="day-popup-task" data-task-id="${task.id}">
+                    <span class="priority-indicator" style="background: ${priorityColors[task.priority || 'compulsory']}"></span>
+                    <div class="task-info">
+                        <span class="task-title">${task.title}</span>
+                        <span class="task-priority-label">${(task.priority || 'compulsory').charAt(0).toUpperCase() + (task.priority || 'compulsory').slice(1)}</span>
+                    </div>
+                    <button class="edit-task-btn" title="Edit">✎</button>
+                </div>
+            `).join('')}
+        </div>
+        <button class="add-task-to-day-btn">+ Add New Decree</button>
+    `;
+
+    document.body.appendChild(popup);
+
+    // Close button
+    popup.querySelector('.popup-close-btn').addEventListener('click', () => popup.remove());
+
+    // Edit buttons
+    popup.querySelectorAll('.edit-task-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const taskId = parseInt(e.target.closest('.day-popup-task').dataset.taskId);
+            const task = state.tasks.find(t => t.id === taskId);
+            if (task) {
+                popup.remove();
+                openModal(task.column, task, task.realm);
+            }
+        });
+    });
+
+    // Click on task row to edit
+    popup.querySelectorAll('.day-popup-task').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (!e.target.closest('.edit-task-btn')) {
+                const taskId = parseInt(row.dataset.taskId);
+                const task = state.tasks.find(t => t.id === taskId);
+                if (task) {
+                    popup.remove();
+                    openModal(task.column, task, task.realm);
+                }
+            }
+        });
+    });
+
+    // Add new task button
+    popup.querySelector('.add-task-to-day-btn').addEventListener('click', () => {
+        popup.remove();
+        openModal("archive", null, null, dateStr);
+    });
+
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target) && !e.target.closest('.calendar-day')) {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 100);
 }
 
 document.getElementById("prev-month").addEventListener("click", () => {
@@ -598,9 +823,9 @@ document.getElementById("next-month").addEventListener("click", () => {
 function setActiveView(view) {
     activeView = view;
     currentRealm = null;
-    
+
     [tabAll, tabToday, tabCalendar].forEach(el => el.classList.remove("active"));
-    
+
     switch (view) {
         case "all":
             tabAll.classList.add("active");
@@ -632,7 +857,7 @@ function setActiveView(view) {
             renderCalendar();
             break;
     }
-    
+
     renderAllViews();
 }
 
@@ -651,7 +876,7 @@ function createCardElement(task) {
     card.dataset.id = task.id;
     card.dataset.taskId = task.id;
 
-    const realmInfo = task.realm && state.realms[task.realm] ? 
+    const realmInfo = task.realm && state.realms[task.realm] ?
         `${state.realms[task.realm].icon} ${task.realm}` : task.tag || "No tag";
 
     card.innerHTML = `
@@ -670,7 +895,7 @@ function createCardElement(task) {
         e.stopPropagation();
         openModal(task.column, task, task.realm);
     };
-    
+
     card.querySelector(".delete").onclick = async e => {
         e.stopPropagation();
         const ok = await openDeleteDialog();
@@ -742,7 +967,7 @@ document.querySelectorAll(".add-card-slot").forEach(btn => {
 function renderTodayChecklist() {
     const today = todayISO();
     const searchTerm = searchInput.value.trim().toLowerCase();
-    const todayTasks = state.tasks.filter(t => 
+    const todayTasks = state.tasks.filter(t =>
         (t.column === "today" || (t.column === "archive" && t.date === today)) && !t.doneInChecklist
     ).filter(t => !searchTerm || t.title.toLowerCase().includes(searchTerm));
 
@@ -757,7 +982,7 @@ function renderTodayChecklist() {
         const li = document.createElement("li");
         li.className = "today-item";
         li.dataset.taskId = task.id;
-        const realmInfo = task.realm && state.realms[task.realm] ? 
+        const realmInfo = task.realm && state.realms[task.realm] ?
             `${state.realms[task.realm].icon} ${task.realm}` : task.tag || "";
         li.innerHTML = `
             <input type="checkbox">
@@ -780,7 +1005,7 @@ function updateCounts() {
     document.getElementById("total-count").textContent = state.tasks.length;
     document.getElementById("today-count").textContent = state.tasks.filter(t => t.column === "today").length;
     document.getElementById("calendar-count").textContent = state.tasks.filter(t => t.column === "archive").length;
-    
+
     ["backlog", "today", "in-progress", "done"].forEach(col => {
         const el = document.querySelector(`[data-column-count="${col}"]`);
         if (el) el.textContent = state.tasks.filter(t => t.column === col).length;
