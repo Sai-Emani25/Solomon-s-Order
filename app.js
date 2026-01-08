@@ -69,6 +69,12 @@ function saveState() {
 }
 
 let state = loadState();
+
+// Recalculate colors for all tasks to match new priority/column rules
+state.tasks.forEach(task => {
+    task.color = getTaskColor(task.column, task.realm, task.priority || 'compulsory');
+});
+
 let editingId = null;
 let activeView = "all";
 let currentRealm = null;
@@ -407,7 +413,7 @@ function saveTask() {
         column: columnSelect.value,
         realm: realmSelect.value || null,
         createdAt: editingId ? state.tasks.find(t => t.id === editingId)?.createdAt || Date.now() : Date.now(),
-        color: getTaskColor(columnSelect.value, realmSelect.value),
+        color: getTaskColor(columnSelect.value, realmSelect.value, priority),
         date: columnSelect.value === "archive" ? (dateInput.value || todayISO()) : null,
         priority: priority,
         doneInChecklist: false
@@ -422,7 +428,7 @@ function saveTask() {
     }
 
     // Update color in case realm changed
-    taskData.color = getTaskColor(taskData.column, taskData.realm);
+    taskData.color = getTaskColor(taskData.column, taskData.realm, taskData.priority);
 
     if (editingId != null) {
         const existing = state.tasks.find(t => t.id === editingId);
@@ -431,16 +437,35 @@ function saveTask() {
         state.tasks.push(taskData);
     }
 
+    // Refresh color for all tasks just in case
+    taskData.color = getTaskColor(taskData.column, taskData.realm, taskData.priority);
+
     saveState();
     renderAllViews();
     closeModal();
 }
 
-function getTaskColor(column, realm) {
+function getTaskColor(column, realm, priority) {
+    // Rule: Backlog is always red
+    if (column === "backlog") return "red";
+
+    // Rule: Priority colors
+    if (priority === "deadline") return "red";
+    if (priority === "optional") return "green";
+    if (priority === "compulsory") return "yellow";
+
+    // Fallback to realm color
     if (realm && state.realms[realm]) {
         return state.realms[realm].color;
     }
-    const columnColors = { backlog: "yellow", today: "blue", "in-progress": "orange", done: "pink", archive: "yellow" };
+
+    const columnColors = {
+        backlog: "red",
+        today: "blue",
+        "in-progress": "orange",
+        done: "pink",
+        archive: "yellow"
+    };
     return columnColors[column] || "yellow";
 }
 
@@ -476,7 +501,7 @@ function renderRealmList() {
             if (confirm(`Delete realm "${name}"? (${count} tasks will lose this tag)`)) {
                 delete state.realms[name];
                 state.tasks.forEach(task => { if (task.realm === name) task.realm = null; });
-                state.tasks.forEach(task => task.color = getTaskColor(task.column, task.realm));
+                state.tasks.forEach(task => task.color = getTaskColor(task.column, task.realm, task.priority));
                 saveState();
                 renderAllViews();
             }
@@ -576,7 +601,7 @@ function renderRealmTasks() {
         card.querySelector(".realm-add-to-board").addEventListener("click", e => {
             e.stopPropagation();
             task.column = "backlog";
-            task.color = getTaskColor("backlog", currentRealm);
+            task.color = getTaskColor("backlog", currentRealm, task.priority);
             saveState();
             renderAllViews();
         });
@@ -956,7 +981,7 @@ document.querySelectorAll(".column").forEach(col => {
             const task = state.tasks.find(t => t.id === taskId);
             if (task) {
                 task.column = col.dataset.column;
-                task.color = getTaskColor(task.column, task.realm);
+                task.color = getTaskColor(task.column, task.realm, task.priority);
                 saveState();
                 renderAllViews();
             }
@@ -987,7 +1012,7 @@ function renderTodayChecklist() {
 
     todayTasks.forEach(task => {
         const li = document.createElement("li");
-        li.className = "today-item";
+        li.className = `today-item priority-${task.priority || 'compulsory'}`;
         li.dataset.taskId = task.id;
         const realmInfo = task.realm && state.realms[task.realm] ?
             `${state.realms[task.realm].icon} ${task.realm}` : task.tag || "";

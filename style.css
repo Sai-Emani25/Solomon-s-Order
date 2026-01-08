@@ -983,6 +983,16 @@ body {
 	background: radial-gradient(circle at top left, #fff5bc 0, #f7e291 55%);
 }
 
+.card-red:not(.realm-red) {
+	background: radial-gradient(circle at top left, #ffd6d6 0, #ff5f5f 60%);
+	border-left-color: #d63031 !important;
+}
+
+.card-green:not(.realm-green) {
+	background: radial-gradient(circle at top left, #dcfce7 0, #4ade80 60%);
+	border-left-color: #16a34a !important;
+}
+
 .card-blue:not(.realm-blue) {
 	background: radial-gradient(circle at top left, #ddf3ff 0, #b7e3ff 60%);
 }
@@ -1171,7 +1181,22 @@ body {
 }
 
 .today-item[data-task-id] {
-	border-left: 3px solid transparent;
+	border-left: 4px solid transparent;
+}
+
+.today-item.priority-deadline {
+	border-left-color: var(--priority-deadline);
+	background: rgba(255, 95, 95, 0.1);
+}
+
+.today-item.priority-compulsory {
+	border-left-color: var(--priority-compulsory);
+	background: rgba(247, 226, 145, 0.1);
+}
+
+.today-item.priority-optional {
+	border-left-color: var(--priority-optional);
+	background: rgba(74, 222, 128, 0.1);
 }
 
 .today-item input[type="checkbox"] {
