@@ -40,6 +40,9 @@ function loadState() {
 
         // Ensure tasks with dates or realm synchronization
         saved.tasks.forEach(task => {
+            if (task.addedToBoard === undefined) {
+                task.addedToBoard = task.realm !== "War Room";
+            }
             if (task.date) {
                 task.realm = "Thy Strategy";
                 task.column = "archive";
@@ -405,6 +408,15 @@ function saveTask() {
     const selectedPriority = document.querySelector('input[name="task-priority"]:checked');
     const priority = selectedPriority ? selectedPriority.value : 'compulsory';
 
+    const existing = editingId ? state.tasks.find(t => t.id === editingId) : null;
+    let addedToBoard = existing ? (existing.addedToBoard ?? true) : (realmSelect.value !== "War Room");
+
+    // If realm just changed to War Room, hide it. If changed away, show it.
+    if (editingId && existing && existing.realm !== realmSelect.value) {
+        if (realmSelect.value === "War Room") addedToBoard = false;
+        else addedToBoard = true;
+    }
+
     const taskData = {
         id: editingId || state.counter++,
         title,
@@ -412,11 +424,12 @@ function saveTask() {
         tag: tagInput.value.trim(),
         column: columnSelect.value,
         realm: realmSelect.value || null,
-        createdAt: editingId ? state.tasks.find(t => t.id === editingId)?.createdAt || Date.now() : Date.now(),
+        createdAt: editingId ? existing?.createdAt || Date.now() : Date.now(),
         color: getTaskColor(columnSelect.value, realmSelect.value, priority),
         date: columnSelect.value === "archive" ? (dateInput.value || todayISO()) : null,
         priority: priority,
-        doneInChecklist: false
+        doneInChecklist: false,
+        addedToBoard: addedToBoard
     };
 
     // SYNC LOGIC: Enforce Thy Strategy Realm <-> Calendar Chamber sync
@@ -424,14 +437,11 @@ function saveTask() {
     if (taskData.date || taskData.column === "archive" || taskData.realm === "Thy Strategy") {
         taskData.realm = "Thy Strategy";
         taskData.column = "archive";
+        taskData.addedToBoard = true;
         if (!taskData.date) taskData.date = dateInput.value || todayISO();
     }
 
-    // Update color in case realm changed
-    taskData.color = getTaskColor(taskData.column, taskData.realm, taskData.priority);
-
     if (editingId != null) {
-        const existing = state.tasks.find(t => t.id === editingId);
         Object.assign(existing, taskData);
     } else {
         state.tasks.push(taskData);
@@ -583,6 +593,7 @@ function renderRealmTasks() {
         const card = document.createElement("div");
         card.className = `realm-card realm-${config.color}`;
         card.dataset.taskId = task.id;
+        const isAdded = task.realm === "War Room" ? task.addedToBoard : true;
         card.innerHTML = `
             <div class="realm-card-title">${task.title}</div>
             ${task.body ? `<div class="realm-card-body">${task.body}</div>` : ""}
@@ -591,7 +602,11 @@ function renderRealmTasks() {
                     ${config.icon} ${task.tag || "No tag"}
                 </span>
                 <div class="realm-card-actions">
-                    <button class="icon-btn realm-add-to-board" title="➤ Add to All Chambers">➤</button>
+                    <button class="icon-btn realm-add-to-board ${isAdded ? 'added' : ''}" 
+                            title="${isAdded ? 'Already in Chambers' : '➤ Add to All Chambers'}"
+                            ${isAdded ? 'disabled style="opacity: 0.5; cursor: default;"' : ''}>
+                        ${isAdded ? '✓' : '➤'}
+                    </button>
                     <button class="icon-btn" title="Edit">✎</button>
                     <button class="icon-btn delete" title="Delete">🗑</button>
                 </div>
@@ -600,6 +615,7 @@ function renderRealmTasks() {
 
         card.querySelector(".realm-add-to-board").addEventListener("click", e => {
             e.stopPropagation();
+            task.addedToBoard = true;
             task.column = "backlog";
             task.color = getTaskColor("backlog", currentRealm, task.priority);
             saveState();
@@ -949,9 +965,12 @@ function renderBoard() {
         const body = document.querySelector(`[data-column-body="${column}"]`);
         if (body) {
             body.innerHTML = "";
-            state.tasks.filter(t => t.column === column).forEach(task => {
-                body.appendChild(createCardElement(task));
-            });
+            state.tasks
+                .filter(t => t.column === column)
+                .filter(t => t.realm !== "War Room" || t.addedToBoard)
+                .forEach(task => {
+                    body.appendChild(createCardElement(task));
+                });
         }
     });
 }
@@ -1000,7 +1019,9 @@ function renderTodayChecklist() {
     const today = todayISO();
     const searchTerm = searchInput.value.trim().toLowerCase();
     const todayTasks = state.tasks.filter(t =>
-        (t.column === "today" || (t.column === "archive" && t.date === today)) && !t.doneInChecklist
+        (t.column === "today" || (t.column === "archive" && t.date === today)) &&
+        !t.doneInChecklist &&
+        (t.realm !== "War Room" || t.addedToBoard)
     ).filter(t => !searchTerm || t.title.toLowerCase().includes(searchTerm));
 
     todayListEl.innerHTML = "";
@@ -1034,13 +1055,13 @@ function renderTodayChecklist() {
 
 /* ---------- Counts & Search ---------- */
 function updateCounts() {
-    document.getElementById("total-count").textContent = state.tasks.length;
-    document.getElementById("today-count").textContent = state.tasks.filter(t => t.column === "today").length;
+    document.getElementById("total-count").textContent = state.tasks.filter(t => t.realm !== "War Room" || t.addedToBoard).length;
+    document.getElementById("today-count").textContent = state.tasks.filter(t => t.column === "today" && (t.realm !== "War Room" || t.addedToBoard)).length;
     document.getElementById("calendar-count").textContent = state.tasks.filter(t => t.column === "archive").length;
 
     ["backlog", "today", "in-progress", "done"].forEach(col => {
         const el = document.querySelector(`[data-column-count="${col}"]`);
-        if (el) el.textContent = state.tasks.filter(t => t.column === col).length;
+        if (el) el.textContent = state.tasks.filter(t => t.column === col && (t.realm !== "War Room" || t.addedToBoard)).length;
     });
 }
 
