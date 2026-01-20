@@ -761,6 +761,8 @@ body {
 	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 	gap: 16px;
 	margin-bottom: 24px;
+	content-visibility: auto;
+	contain-intrinsic-size: 300px 400px;
 }
 
 .realm-card {
@@ -771,6 +773,7 @@ body {
 	box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
 	transition: all var(--transition-med);
 	cursor: pointer;
+	will-change: transform;
 }
 
 .realm-card.realm-yellow {
@@ -930,6 +933,9 @@ body {
 	flex-direction: column;
 	gap: 10px;
 	flex: 1;
+	/* Performance: avoid rendering off-screen content */
+	content-visibility: auto;
+	contain-intrinsic-size: 200px 300px;
 }
 
 /* Realm-colored cards */
@@ -942,6 +948,8 @@ body {
 	transition: all var(--transition-med);
 	border: 1px solid rgba(0, 0, 0, 0.32);
 	backdrop-filter: blur(0.4px);
+	/* Hint compositor for smoother drags/hover */
+	will-change: transform;
 }
 
 .card[data-task-id] {
@@ -1167,6 +1175,8 @@ body {
 	max-height: 300px;
 	overflow-y: auto;
 	padding-right: 4px;
+	content-visibility: auto;
+	contain-intrinsic-size: 200px 260px;
 }
 
 .today-item {
@@ -1264,6 +1274,8 @@ body {
 	grid-template-columns: repeat(7, minmax(0, 1fr));
 	gap: 4px;
 	font-size: 12px;
+	content-visibility: auto;
+	contain-intrinsic-size: 300px 320px;
 }
 
 .calendar-weekday {
@@ -1448,6 +1460,13 @@ body {
 	gap: 6px;
 	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
 	transition: all var(--transition-fast);
+}
+
+.import-label {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
 }
 
 .btn-ghost-strong::before {
@@ -1718,8 +1737,8 @@ body {
 /* Google Login & Profile Popup - Compatible with your castle theme */
 .google-login-container {
 	position: relative;
-	width: 32px;
-	height: 32px;
+	width: 40px;
+	height: 40px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1727,8 +1746,8 @@ body {
 
 #user-profile {
 	position: relative;
-	width: 32px;
-	height: 32px;
+	width: 40px;
+	height: 40px;
 	cursor: pointer;
 	border-radius: 50%;
 	display: flex;
@@ -1743,11 +1762,12 @@ body {
 }
 
 .profile-pic {
-	width: 28px;
-	height: 28px;
+	width: 36px;
+	height: 36px;
 	border-radius: 50%;
 	border: 2px solid rgba(245, 211, 139, 0.4);
 	transition: all var(--transition-fast);
+	object-fit: cover;
 }
 
 .profile-pic:hover {
@@ -1807,12 +1827,19 @@ body {
 
 /* Google Sign-In Button - Castle theme override */
 .g_id_signin {
-	--google-button-size: 28px !important;
-	width: 28px !important;
-	height: 28px !important;
+	width: 40px !important;
+	height: 40px !important;
 	border-radius: 50% !important;
-	border: 1px solid rgba(245, 211, 139, 0.3) !important;
-	background: rgba(7, 13, 26, 0.9) !important;
+	overflow: hidden !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	transition: all var(--transition-fast) !important;
+}
+
+.g_id_signin:hover {
+	transform: scale(1.05) !important;
+	box-shadow: 0 4px 12px rgba(245, 211, 139, 0.3) !important;
 }
 
 .g_id_signin[data-shape="circle"] {
@@ -1845,4 +1872,6 @@ body {
 /* Hide Google default styling conflicts */
 .g_id_signin iframe {
 	border-radius: 50% !important;
+	width: 40px !important;
+	height: 40px !important;
 }

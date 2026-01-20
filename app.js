@@ -1,67 +1,86 @@
 const STORAGE_KEY = "solomons-order-v3";
+const LEGACY_STORAGE_KEYS = ["solomons-order-v2", "solomons-order"];
+const API_STATE_URL = "/api/state";
+
+const DEFAULT_REALMS = {
+    "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
+    "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
+    "Thy Strategy": { color: "pink", icon: "📜", hsl: "330" }
+};
 
 // Update Google OAuth client ID
 const GOOGLE_CLIENT_ID = "837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com";
 
+let loadedFromKey = STORAGE_KEY;
+
+function normalizeState(saved) {
+    const stateObj = saved || {};
+    if (!stateObj.tasks) stateObj.tasks = [];
+    if (!stateObj.realms) stateObj.realms = {};
+    stateObj.realms = { ...DEFAULT_REALMS, ...stateObj.realms };
+    stateObj.counter = stateObj.counter || stateObj.tasks.length + 1 || 1;
+
+    // Migrations
+    if (stateObj.realms["Archives"]) {
+        stateObj.realms["Thy Strategy"] = stateObj.realms["Archives"];
+        stateObj.realms["Thy Strategy"].icon = stateObj.realms["Thy Strategy"].icon || "📜";
+        delete stateObj.realms["Archives"];
+    }
+
+    stateObj.tasks.forEach(task => {
+        if (task.addedToBoard === undefined) {
+            task.addedToBoard = task.realm !== "War Room";
+        }
+        if (task.date) {
+            task.realm = "Thy Strategy";
+            task.column = "archive";
+        } else if (task.realm === "Archives") {
+            task.realm = "Thy Strategy";
+            task.column = "archive";
+            task.date = todayISO();
+        } else if (task.realm === "Thy Strategy") {
+            task.column = "archive";
+            if (!task.date) task.date = todayISO();
+        }
+    });
+
+    return stateObj;
+}
+
 function loadState() {
-    const defaultRealms = {
-        "Great Hall": { color: "yellow", icon: "🏰", hsl: "60" },
-        "War Room": { color: "orange", icon: "⚔️", hsl: "30" },
-        "Thy Strategy": { color: "pink", icon: "📜", hsl: "330" }
-    };
+    let raw = localStorage.getItem(STORAGE_KEY);
+    let sourceKey = STORAGE_KEY;
+
+    // Try legacy keys if primary is empty
+    if (!raw) {
+        for (const key of LEGACY_STORAGE_KEYS) {
+            const legacyRaw = localStorage.getItem(key);
+            if (legacyRaw) {
+                raw = legacyRaw;
+                sourceKey = key;
+                break;
+            }
+        }
+    }
+
+    loadedFromKey = sourceKey;
 
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
             return {
                 tasks: [],
-                realms: defaultRealms,
+                realms: { ...DEFAULT_REALMS },
                 counter: 1
             };
         }
-        let saved = JSON.parse(raw);
-        if (!saved.tasks) saved.tasks = [];
-        if (!saved.realms) saved.realms = defaultRealms;
-        if (!saved.counter) saved.counter = saved.tasks.length + 1;
 
-        // Migrations
-        if (saved.realms["Archives"]) {
-            saved.realms["Thy Strategy"] = saved.realms["Archives"];
-            saved.realms["Thy Strategy"].icon = saved.realms["Thy Strategy"].icon || "📜";
-            delete saved.realms["Archives"];
-        }
-
-        // Ensure default realms always exist
-        Object.entries(defaultRealms).forEach(([name, config]) => {
-            if (!saved.realms[name]) {
-                saved.realms[name] = config;
-            }
-        });
-
-        // Ensure tasks with dates or realm synchronization
-        saved.tasks.forEach(task => {
-            if (task.addedToBoard === undefined) {
-                task.addedToBoard = task.realm !== "War Room";
-            }
-            if (task.date) {
-                task.realm = "Thy Strategy";
-                task.column = "archive";
-            } else if (task.realm === "Archives") {
-                task.realm = "Thy Strategy";
-                task.column = "archive";
-                task.date = todayISO();
-            } else if (task.realm === "Thy Strategy") {
-                task.column = "archive";
-                if (!task.date) task.date = todayISO();
-            }
-        });
-
-        return saved;
+        const parsed = JSON.parse(raw);
+        return normalizeState(parsed);
     } catch (e) {
         console.error("Failed to load state:", e);
         return {
             tasks: [],
-            realms: defaultRealms,
+            realms: { ...DEFAULT_REALMS },
             counter: 1
         };
     }
@@ -69,9 +88,93 @@ function loadState() {
 
 function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // Also persist to server when available
+    saveStateToServer();
+}
+
+function exportState() {
+    try {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "solomons-order-backup.json";
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error("Export failed", e);
+        alert("Export failed. See console for details.");
+    }
+}
+
+function importStateFromObject(obj) {
+    try {
+        const normalized = normalizeState(obj);
+        state = normalized;
+        saveState();
+        renderAllViews();
+        setActiveView("all");
+        alert("Import successful! Your decrees have been restored.");
+    } catch (e) {
+        console.error("Import failed", e);
+        alert("Import failed. Is the JSON from Export?");
+    }
+}
+
+function handleImportFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const data = JSON.parse(reader.result);
+            importStateFromObject(data);
+        } catch (e) {
+            console.error("Import parse failed", e);
+            alert("Could not parse JSON. Make sure it is an Export file.");
+        } finally {
+            event.target.value = "";
+        }
+    };
+    reader.readAsText(file);
+}
+
+async function saveStateToServer() {
+    try {
+        await fetch(API_STATE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ state })
+        });
+    } catch (e) {
+        console.warn("Server save skipped (offline?)", e);
+    }
+}
+
+async function syncStateFromServer() {
+    try {
+        const res = await fetch(API_STATE_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && data.tasks) {
+            state = normalizeState(data);
+            saveState();
+            const previousView = activeView;
+            renderAllViews();
+            setActiveView(previousView || "all");
+        }
+    } catch (e) {
+        console.info("Server sync skipped (no server or offline)", e);
+    }
 }
 
 let state = loadState();
+
+// If we loaded from a legacy key, persist into the current key
+if (loadedFromKey !== STORAGE_KEY) {
+    saveState();
+}
 
 // Recalculate colors for all tasks to match new priority/column rules
 state.tasks.forEach(task => {
@@ -103,6 +206,8 @@ const mainSubtitleEl = document.getElementById("main-subtitle");
 const searchInput = document.getElementById("search-input");
 const searchDropdown = document.getElementById("search-dropdown");
 const searchContainer = document.getElementById("search-container");
+const exportBtn = document.getElementById("export-btn");
+const importInput = document.getElementById("import-input");
 
 const modalBackdrop = document.getElementById("modal-backdrop");
 const modalTitleEl = document.getElementById("modal-title");
@@ -161,7 +266,7 @@ window.handleCredentialResponse = function (response) {
 
     // Update profile display
     userPhotoEl.src = userProfile.picture;
-    userNameEl.textContent = userProfile.name;
+    if (userNameEl) userNameEl.textContent = userProfile.name;
 
     // Save to localStorage
     localStorage.setItem("solomons-user", JSON.stringify(userProfile));
@@ -169,8 +274,11 @@ window.handleCredentialResponse = function (response) {
     console.log("Google login successful:", userProfile);
 };
 
-// Initialize Google Identity Services
+// Initialize Google Identity Services (guard against double init)
+let __gisInitialized = false;
 function initGoogleAuth() {
+    if (__gisInitialized) return;
+    if (!(window.google && google.accounts && google.accounts.id)) return;
     google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse
@@ -182,6 +290,7 @@ function initGoogleAuth() {
     );
 
     google.accounts.id.prompt(); // Automatically prompt for login if possible
+    __gisInitialized = true;
 }
 
 // Check for existing login on page load
@@ -191,7 +300,7 @@ if (savedUser) {
     googleSigninDiv.style.display = "none";
     userProfileEl.style.display = "flex";
     userPhotoEl.src = userProfile.picture;
-    userNameEl.textContent = userProfile.name;
+    if (userNameEl) userNameEl.textContent = userProfile.name;
 } else {
     initGoogleAuth();
 }
@@ -208,12 +317,13 @@ function updateRealmSelect() {
 
 /* ---------- Search Dropdown ---------- */
 function showSearchResults(query) {
+    const q = query.toLowerCase();
     const results = state.tasks
         .filter(task =>
-            task.title.toLowerCase().includes(query.toLowerCase()) ||
-            (task.body || "").toLowerCase().includes(query.toLowerCase()) ||
-            (task.tag || "").toLowerCase().includes(query.toLowerCase()) ||
-            (task.realm || "").toLowerCase().includes(query.toLowerCase())
+            task.title.toLowerCase().includes(q) ||
+            (task.body || "").toLowerCase().includes(q) ||
+            (task.tag || "").toLowerCase().includes(q) ||
+            (task.realm || "").toLowerCase().includes(q)
         )
         .slice(0, 8);
 
@@ -915,6 +1025,8 @@ tabCalendar.addEventListener("click", () => setActiveView("calendar"));
 
 newCardBtn.addEventListener("click", () => openModal("backlog"));
 addTodayInlineBtn.addEventListener("click", () => openModal("today"));
+if (exportBtn) exportBtn.addEventListener("click", exportState);
+if (importInput) importInput.addEventListener("change", handleImportFile);
 
 /* ---------- Board Rendering ---------- */
 function createCardElement(task) {
@@ -1093,7 +1205,9 @@ function renderAllViews() {
     renderBoard();
     renderTodayChecklist();
     renderRealmList();
-    renderCalendar();
+    if (activeView === "calendar") {
+        renderCalendar();
+    }
     updateCounts();
     if (activeView.startsWith("realm:")) renderRealmTasks();
 }
@@ -1103,28 +1217,37 @@ updateRealmSelect();
 initGoogleAuth(); // Initialize Google Auth
 renderAllViews();
 setActiveView("all");
+syncStateFromServer();
 // ========== GOOGLE PROFILE POPUP ==========
 let profilePopup = document.getElementById('profile-popup');
 let popupNameEl = document.getElementById('popup-name');
 let popupEmailEl = document.getElementById('popup-email');
+const userProfileBtn = document.getElementById('user-profile');
+const logoutBtn = document.getElementById('logout-btn');
 
-// Profile popup click handler
-document.getElementById('user-profile').addEventListener('click', (e) => {
-    e.stopPropagation();
-    profilePopup.classList.add('show');
-});
+// Profile popup click handler (guarded in case DOM is missing during early load)
+if (userProfileBtn && profilePopup) {
+    userProfileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profilePopup.classList.add('show');
+    });
+} else {
+    console.warn('User profile elements missing; skipping popup binding');
+}
 
 // Close popup on outside click
 document.addEventListener('click', () => {
-    profilePopup.classList.remove('show');
+    if (profilePopup) profilePopup.classList.remove('show');
     searchDropdown.style.display = 'none'; // Also close search
 });
 
 // Logout handler
-document.getElementById('logout-btn').addEventListener('click', () => {
-    localStorage.removeItem('solomons-user');
-    userProfile = null;
-    googleSigninDiv.style.display = 'block';
-    userProfileEl.style.display = 'none';
-    profilePopup.classList.remove('show');
-});
+if (logoutBtn && profilePopup) {
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('solomons-user');
+        userProfile = null;
+        googleSigninDiv.style.display = 'block';
+        userProfileEl.style.display = 'none';
+        profilePopup.classList.remove('show');
+    });
+}

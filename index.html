@@ -7,9 +7,17 @@
     <meta name="google-signin-client_id"
         content="837832619942-huonarvqldpjt1o2ahp0u37295h5bdd7.apps.googleusercontent.com">
     <title>Solomon's Order</title>
+    <!-- Performance hints -->
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin>
+    <link rel="preconnect" href="https://ssl.gstatic.com" crossorigin>
+    <link rel="preload" href="style.css" as="style">
     <link rel="stylesheet" href="style.css">
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- For local server fetches -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
 </head>
 
 <body>
@@ -23,13 +31,12 @@
                         <div id="g_id_onload" data-client_id="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"
                             data-callback="handleCredentialResponse" data-auto_prompt="false">
                         </div>
-                        <div class="g_id_signin" data-type="standard" data-size="small" data-theme="outline"
-                            data-text="signin" data-shape="circle" data-logo_alignment="center">
+                        <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="outline">
                         </div>
 
                         <!-- User profile after login - small profile button -->
                         <div id="user-profile" class="user-profile" style="display: none;">
-                            <img id="user-photo" alt="Profile" class="profile-pic">
+                            <img id="user-photo" alt="Profile" class="profile-pic" loading="lazy">
                             <div class="profile-popup" id="profile-popup" style="display: none;">
                                 <div class="popup-content">
                                     <h4>Welcome, <span id="popup-name"></span>!</h4>
@@ -97,6 +104,9 @@
                     <button id="new-card-btn" class="btn-primary">
                         <span>New Decree</span>
                     </button>
+                    <button id="export-btn" class="btn-ghost-strong">Export</button>
+                    <label for="import-input" class="btn-ghost-strong import-label">Import</label>
+                    <input id="import-input" type="file" accept="application/json" style="display: none;">
                 </div>
             </header>
 
