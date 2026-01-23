@@ -640,11 +640,11 @@ function renderRealmList() {
 function addNewRealm() {
     const name = prompt("Realm/Tag name:");
     if (name && !state.realms[name]) {
-        const colors = ["yellow", "orange", "pink", "blue", "green", "purple"];
+        const colors = ["yellow", "orange", "pink", "blue", "green", "purple", "personal"];
         const color = prompt("Color:", colors[Math.floor(Math.random() * colors.length)]) || "yellow";
         const icons = ["🏰", "⚔️", "📜", "🗡️", "🛡️", "👑", "🪙", "📦"];
         const icon = prompt("Icon (or press enter):", icons[Math.floor(Math.random() * icons.length)]) || "🏷️";
-        const hslColors = { yellow: "60", orange: "30", pink: "330", blue: "210", green: "140", purple: "270" };
+        const hslColors = { yellow: "60", orange: "30", pink: "330", blue: "210", green: "140", purple: "270", personal: "217" };
         state.realms[name] = { color, icon, hsl: hslColors[color] };
         saveState();
         renderAllViews();
